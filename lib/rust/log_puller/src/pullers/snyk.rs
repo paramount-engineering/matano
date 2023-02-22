@@ -96,7 +96,7 @@ impl PullLogs for SnykPuller {
 
                 let url = format!(
                     "https://api.snyk.io/api/v1/group/{}/audit?from={}&to={}&page={}&sortOrder=ASC",
-                    start_day, yesterday, group_id, page
+                    group_id, start_day, yesterday, page
                 );
                 info!("requesting url: {}", &url);
 
@@ -133,7 +133,7 @@ impl PullLogs for SnykPuller {
 
                 let url = format!(
                     "https://api.snyk.io/api/v1/org/{}/audit?from={}&to={}&page={}&sortOrder=ASC",
-                    start_day, yesterday, org_id, page
+                    org_id, start_day, yesterday, page
                 );
                 info!("requesting url: {}", &url);
 
