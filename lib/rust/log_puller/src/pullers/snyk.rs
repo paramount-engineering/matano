@@ -4,14 +4,113 @@ use tokio::sync::Mutex;
 use anyhow::{anyhow, Context as AnyhowContext, Error, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset, Local, NaiveDateTime, Utc};
+// use derivative::Derivative;
 use log::{debug, error, info};
 
 use reqwest::header;
+use serde_json::json;
 
 use super::{PullLogs, PullLogsContext};
 
 #[derive(Clone)]
 pub struct SnykPuller;
+
+// Example request body for issues API
+//
+// {
+//   "filters": {
+//     "orgs": [],
+//     "severity": [
+//       "critical",
+//       "high",
+//       "medium",
+//       "low"
+//     ],
+//     "exploitMaturity": [
+//       "mature",
+//       "proof-of-concept",
+//       "no-known-exploit",
+//       "no-data"
+//     ],
+//     "types": [
+//       "vuln",
+//       "license",
+//       "configuration"
+//     ],
+//     "languages": [
+//       "node",
+//       "javascript",
+//       "ruby",
+//       "java",
+//       "scala",
+//       "python",
+//       "golang",
+//       "php",
+//       "dotnet",
+//       "swift-objective-c",
+//       "elixir",
+//       "docker",
+//       "linux",
+//       "dockerfile",
+//       "terraform",
+//       "kubernetes",
+//       "helm",
+//       "cloudformation",
+//       "arm"
+//     ],
+//     "projects": [],
+//     "issues": [],
+//     "identifier": "",
+//     "ignored": false,
+//     "patched": false,
+//     "fixable": false,
+//     "isFixed": false,
+//     "isUpgradable": false,
+//     "isPatchable": false,
+//     "isPinnable": false,
+//     "priorityScore": {
+//       "min": 0,
+//       "max": 1000
+//     }
+//   }
+// }
+
+// #[derive(Derivative)]
+// #[derive(Serialize, Deserialize, Default)]
+// struct PriorityScore {
+//     min: Option<u8>,
+//     #[derivative(Default(value = "1000"))]
+//     max: Option<u8>,
+// }
+
+// #[derive(Serialize, Deserialize, Clone)]
+// struct IssueFilters {
+//     org: Vec<String>,
+//     
+//     // TODO: Add support for optional filters once we figure out a good design for the
+//     // configuration.
+// 
+//     severity: Option<Vec<String>>,
+//     exploitMaturity: Option<Vec<String>>,
+//     types: Option<Vec<String>>,
+//     languages: Option<Vec<String>>,
+//     projects: Option<Vec<String>>,
+//     issues: Option<Vec<String>>,
+//     identifier: Option<String>,
+//     ignored: Option<bool>,
+//     patched: Option<bool>,
+//     fixable: Option<bool>,
+//     isFixed: Option<bool>,
+//     isUpgradable: Option<bool>,
+//     isPatchable: Option<bool>,
+//     isPinnable: Option<bool>,
+//     // priorityScore: Option<PriorityScore>,
+// }
+// 
+// #[derive(Serialize, Deserialize, Clone)]
+// struct IssuesRequestBody {
+//     filters: IssueFilters,
+// }
 
 fn api_headers(auth_token: &Option<String>) -> Result<header::HeaderMap> {
     let mut headers = header::HeaderMap::new();
@@ -99,10 +198,14 @@ impl PullLogs for SnykPuller {
                     group_id, start_day, yesterday, page
                 );
                 info!("requesting url: {}", &url);
+                
+                // TODO: Allow configuring filters for this log source.
+                // Synk will error if we don't pass empty body in the POST
 
                 let response = client
-                    .get(url.clone())
+                    .post(url.clone())
                     .headers(headers.clone())
+                    .body("")
                     .send()
                     .await?;
 
@@ -137,9 +240,13 @@ impl PullLogs for SnykPuller {
                 );
                 info!("requesting url: {}", &url);
 
+                // TODO: Allow configuring filters for this log source.
+                // Synk will error if we don't pass empty filters in the POST.
+
                 let response = client
-                    .get(url.clone())
+                    .post(url.clone())
                     .headers(headers.clone())
+                    .body("")
                     .send()
                     .await?;
 
@@ -176,10 +283,27 @@ impl PullLogs for SnykPuller {
                     page
                 );
                 info!("requesting url: {}", &url);
+                
+                // let issueFilters = IssueFilters {
+                //     org: vec![&org_id],
+                // };
+                // 
+                // let issuesRequestBody = IssuesRequestBody {
+                //     filters: issueFilters.clone(),
+                // };
+
+                let json_body = json!({
+                    "filters": {
+                        "org": [
+                            org_id
+                        ]
+                    }
+                });
 
                 let response = client
-                    .get(url.clone())
+                    .post(url.clone())
                     .headers(headers.clone())
+                    .json(&json_body.to_string())
                     .send()
                     .await?;
 
