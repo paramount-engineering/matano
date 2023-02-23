@@ -149,7 +149,7 @@ impl PullLogs for SnykPuller {
         let checkpoint_json = ctx.checkpoint_json.lock().await;
         let is_initial_run = checkpoint_json.is_none();
 
-        let lookback_days_start = if is_initial_run { 7 } else { 2 };
+        let lookback_days_start = if is_initial_run { 4 } else { 2 };
 
         // collect logs from the last complete day? (current day - 2) to (current day - 1)
         let start_day = start_dt
@@ -241,7 +241,7 @@ impl PullLogs for SnykPuller {
                 }
             }
 
-            // Collect Group Level Audit Logs
+            // Collect Org Level Audit Logs
             next_page = 1;
             while next_page != -1 && org_id.is_some() {
                 let page = next_page;
