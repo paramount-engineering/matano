@@ -149,7 +149,7 @@ impl PullLogs for SnykPuller {
         let checkpoint_json = ctx.checkpoint_json.lock().await;
         let is_initial_run = checkpoint_json.is_none();
 
-        let lookback_days_start = if is_initial_run { 30 } else { 2 };
+        let lookback_days_start = if is_initial_run { 7 } else { 2 };
 
         // collect logs from the last complete day? (current day - 2) to (current day - 1)
         let start_day = start_dt
@@ -201,15 +201,28 @@ impl PullLogs for SnykPuller {
                 
                 // TODO: Allow configuring filters for this log source.
                 // Synk will error if we don't pass empty body in the POST
+                
+                let body = json!({});
 
                 let response = client
                     .post(url.clone())
                     .headers(headers.clone())
-                    .body("")
+                    .json(&body)
                     .send()
-                    .await?;
+                    .await
+                    .context("Failed to send request")?;
+                
+                let status = response.status();
+                if !status.is_success() {
+                    error!("Failed to get logs: {}", status)
+                }
+                
+                let mut response_json: Vec<serde_json::Value> = response
+                    .json()
+                    .await
+                    .context("Failed to parse response body")?;
 
-                let response_json: Vec<serde_json::Value> = response.json().await?;
+                // let response_json: Vec<serde_json::Value> = response.json().await?;
                 let length = response_json.len();
 
                 for mut value in response_json {
@@ -246,7 +259,7 @@ impl PullLogs for SnykPuller {
                 let response = client
                     .post(url.clone())
                     .headers(headers.clone())
-                    .body("")
+                    .json("")
                     .send()
                     .await?;
 
