@@ -217,12 +217,10 @@ impl PullLogs for SnykPuller {
                     error!("Failed to get logs: {}", status)
                 }
                 
-                let mut response_json: Vec<serde_json::Value> = response
+                let response_json: Vec<serde_json::Value> = response
                     .json()
-                    .await
-                    .context("Failed to parse response body")?;
+                    .await?;
 
-                // let response_json: Vec<serde_json::Value> = response.json().await?;
                 let length = response_json.len();
 
                 for mut value in response_json {
