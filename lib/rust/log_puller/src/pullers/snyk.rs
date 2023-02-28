@@ -189,7 +189,13 @@ impl PullLogs for SnykPuller {
 
         if tables_config.get("audit").is_some() {
             // Collect Group Level Audit Logs
-            while next_page != -1 && group_id.is_some() {
+            loop {
+                // If group_id isn't set, break
+                if !group_id.is_some() {
+                    debug!("Snyk group_id is not set, skipping group audit logs");
+                    break;
+                }
+
                 let page = next_page;
                 let group_id = group_id.unwrap();
 
@@ -232,8 +238,7 @@ impl PullLogs for SnykPuller {
 
                 // determine if there are more pages to collect
                 if length == 0 {
-                    // if this request returned 0, we're done
-                    next_page = -1;
+                    break;
                 } else {
                     next_page = page + 1;
                 }
@@ -241,7 +246,13 @@ impl PullLogs for SnykPuller {
 
             // Collect Org Level Audit Logs
             next_page = 1;
-            while next_page != -1 && org_id.is_some() {
+            loop {
+                // If org_id isn't set, break
+                if !org_id.is_some() {
+                    debug!("Snyk org_id is not set, skipping org audit logs");
+                    break;
+                }
+
                 let page = next_page;
                 let org_id = org_id.unwrap();
 
@@ -273,8 +284,7 @@ impl PullLogs for SnykPuller {
 
                 // determine if there are more pages to collect
                 if length == 0 {
-                    // if this request returned 0, we're done
-                    next_page = -1;
+                    break;
                 } else {
                     next_page = page + 1;
                 }
@@ -284,7 +294,7 @@ impl PullLogs for SnykPuller {
         if tables_config.get("vulnerabilities").is_some() {
             // Get vulnerability issues
             next_page = 1;
-            while next_page != -1 {
+            loop {
                 let page = next_page;
 
                 let url = format!(
@@ -330,8 +340,7 @@ impl PullLogs for SnykPuller {
 
                 // determine if there are more pages to collect
                 if length == 0 {
-                    // if this request returned 0, we're done
-                    next_page = -1;
+                    break;
                 } else {
                     next_page = page + 1;
                 }
