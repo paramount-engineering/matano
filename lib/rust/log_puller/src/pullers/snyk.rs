@@ -4,7 +4,6 @@ use tokio::sync::Mutex;
 use anyhow::{anyhow, Context as AnyhowContext, Error, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset, Local, NaiveDateTime, Utc};
-// use derivative::Derivative;
 use log::{debug, error, info};
 
 use reqwest::header;
@@ -14,103 +13,6 @@ use super::{PullLogs, PullLogsContext};
 
 #[derive(Clone)]
 pub struct SnykPuller;
-
-// Example request body for issues API
-//
-// {
-//   "filters": {
-//     "orgs": [],
-//     "severity": [
-//       "critical",
-//       "high",
-//       "medium",
-//       "low"
-//     ],
-//     "exploitMaturity": [
-//       "mature",
-//       "proof-of-concept",
-//       "no-known-exploit",
-//       "no-data"
-//     ],
-//     "types": [
-//       "vuln",
-//       "license",
-//       "configuration"
-//     ],
-//     "languages": [
-//       "node",
-//       "javascript",
-//       "ruby",
-//       "java",
-//       "scala",
-//       "python",
-//       "golang",
-//       "php",
-//       "dotnet",
-//       "swift-objective-c",
-//       "elixir",
-//       "docker",
-//       "linux",
-//       "dockerfile",
-//       "terraform",
-//       "kubernetes",
-//       "helm",
-//       "cloudformation",
-//       "arm"
-//     ],
-//     "projects": [],
-//     "issues": [],
-//     "identifier": "",
-//     "ignored": false,
-//     "patched": false,
-//     "fixable": false,
-//     "isFixed": false,
-//     "isUpgradable": false,
-//     "isPatchable": false,
-//     "isPinnable": false,
-//     "priorityScore": {
-//       "min": 0,
-//       "max": 1000
-//     }
-//   }
-// }
-
-// #[derive(Derivative)]
-// #[derive(Serialize, Deserialize, Default)]
-// struct PriorityScore {
-//     min: Option<u8>,
-//     #[derivative(Default(value = "1000"))]
-//     max: Option<u8>,
-// }
-
-// #[derive(Serialize, Deserialize, Clone)]
-// struct IssueFilters {
-//     org: Vec<String>,
-//     
-//     // TODO: Add support for optional filters once we figure out a good design for the
-//     // configuration.
-// 
-//     severity: Option<Vec<String>>,
-//     exploitMaturity: Option<Vec<String>>,
-//     types: Option<Vec<String>>,
-//     languages: Option<Vec<String>>,
-//     projects: Option<Vec<String>>,
-//     issues: Option<Vec<String>>,
-//     identifier: Option<String>,
-//     ignored: Option<bool>,
-//     patched: Option<bool>,
-//     fixable: Option<bool>,
-//     isFixed: Option<bool>,
-//     isUpgradable: Option<bool>,
-//     isPatchable: Option<bool>,
-//     isPinnable: Option<bool>,
-//     // priorityScore: Option<PriorityScore>,
-// }
-// 
-// #[derive(Serialize, Deserialize, Clone)]
-// struct IssuesRequestBody {
-//     filters: IssueFilters,
-// }
 
 fn api_headers(auth_token: &Option<String>) -> Result<header::HeaderMap> {
     let mut headers = header::HeaderMap::new();
@@ -164,7 +66,6 @@ impl PullLogs for SnykPuller {
             .to_string();
 
         let group_id = config.get("group_id").context("Missing group_id").ok();
-        let org_id = config.get("org_id").context("Missing org_id").ok();
 
         let api_token = ctx
             .get_secret_field("api_token")
@@ -187,163 +88,59 @@ impl PullLogs for SnykPuller {
         let headers = api_headers(&Some(api_token))?;
         let newline_u8 = "\n".to_string().into_bytes();
 
-        if tables_config.get("audit").is_some() {
-            // Collect Group Level Audit Logs
-            loop {
-                // If group_id isn't set, break
-                if !group_id.is_some() {
-                    debug!("Snyk group_id is not set, skipping group audit logs");
-                    break;
-                }
-
-                let page = next_page;
-                let group_id = group_id.unwrap();
-
-                let url = format!(
-                    "https://api.snyk.io/api/v1/group/{}/audit?from={}&to={}&page={}&sortOrder=ASC",
-                    group_id, start_day, yesterday, page
-                );
-                info!("requesting url: {}", &url);
-                
-                // TODO: Allow configuring filters for this log source.
-                // Synk will error if we don't pass empty body in the POST
-                
-                let body = json!({});
-
-                let response = client
-                    .post(url.clone())
-                    .headers(headers.clone())
-                    .json(&body)
-                    .send()
-                    .await
-                    .context("Failed to send request")?;
-                
-                let status = response.status();
-                if !status.is_success() {
-                    error!("Failed to get logs: {}", status)
-                }
-                
-                let response_json: Vec<serde_json::Value> = response
-                    .json()
-                    .await?;
-
-                let length = response_json.len();
-
-                for mut value in response_json {
-                    value["_table"] = "audit".into();
-                    let value = serde_json::to_vec(&value)?;
-                    ret.extend_from_slice(&value);
-                    ret.extend_from_slice(&newline_u8);
-                }
-
-                // determine if there are more pages to collect
-                if length == 0 {
-                    break;
-                } else {
-                    next_page = page + 1;
-                }
+        // Collect Group Level Audit Logs
+        loop {
+            // If group_id isn't set, break
+            if !group_id.is_some() {
+                debug!("Snyk group_id is not set, skipping group audit logs");
+                break;
             }
 
-            // Collect Org Level Audit Logs
-            next_page = 1;
-            loop {
-                // If org_id isn't set, break
-                if !org_id.is_some() {
-                    debug!("Snyk org_id is not set, skipping org audit logs");
-                    break;
-                }
+            let page = next_page;
+            let group_id = group_id.unwrap();
 
-                let page = next_page;
-                let org_id = org_id.unwrap();
+            let url = format!(
+                "https://api.snyk.io/api/v1/group/{}/audit?from={}&to={}&page={}&sortOrder=ASC",
+                group_id, start_day, yesterday, page
+            );
+            info!("requesting url: {}", &url);
+            
+            // TODO: Allow configuring filters for this log source.
+            // Synk will error if we don't pass empty body in the POST
+            
+            let body = json!({});
 
-                let url = format!(
-                    "https://api.snyk.io/api/v1/org/{}/audit?from={}&to={}&page={}&sortOrder=ASC",
-                    org_id, start_day, yesterday, page
-                );
-                info!("requesting url: {}", &url);
-
-                // TODO: Allow configuring filters for this log source.
-                // Synk will error if we don't pass empty filters in the POST.
-
-                let response = client
-                    .post(url.clone())
-                    .headers(headers.clone())
-                    .json("")
-                    .send()
-                    .await?;
-
-                let response_json: Vec<serde_json::Value> = response.json().await?;
-                let length = response_json.len();
-
-                for mut value in response_json {
-                    value["_table"] = "audit".into();
-                    let value = serde_json::to_vec(&value)?;
-                    ret.extend_from_slice(&value);
-                    ret.extend_from_slice(&newline_u8);
-                }
-
-                // determine if there are more pages to collect
-                if length == 0 {
-                    break;
-                } else {
-                    next_page = page + 1;
-                }
+            let response = client
+                .post(url.clone())
+                .headers(headers.clone())
+                .json(&body)
+                .send()
+                .await
+                .context("Failed to send request")?;
+            
+            let status = response.status();
+            if !status.is_success() {
+                error!("Failed to get logs: {}", status)
             }
-        }
+            
+            let response_json: Vec<serde_json::Value> = response
+                .json()
+                .await?;
 
-        if tables_config.get("vulnerabilities").is_some() {
-            // Get vulnerability issues
-            next_page = 1;
-            loop {
-                let page = next_page;
+            let length = response_json.len();
 
-                let url = format!(
-                    "https://api.snyk.io/reporting/issues/?from={}&to={}page={}&perPage=100&sortBy=issueTitle&order=asc&groupBy=issue",
-                    start_day,
-                    yesterday,
-                    page
-                );
-                info!("requesting url: {}", &url);
-                
-                // let issueFilters = IssueFilters {
-                //     org: vec![&org_id],
-                // };
-                // 
-                // let issuesRequestBody = IssuesRequestBody {
-                //     filters: issueFilters.clone(),
-                // };
+            for mut value in response_json {
+                value["_table"] = "audit".into();
+                let value = serde_json::to_vec(&value)?;
+                ret.extend_from_slice(&value);
+                ret.extend_from_slice(&newline_u8);
+            }
 
-                let json_body = json!({
-                    "filters": {
-                        "org": [
-                            org_id
-                        ]
-                    }
-                });
-
-                let response = client
-                    .post(url.clone())
-                    .headers(headers.clone())
-                    .json(&json_body.to_string())
-                    .send()
-                    .await?;
-
-                let response_json: Vec<serde_json::Value> = response.json().await?;
-                let length = response_json.len();
-
-                for mut value in response_json {
-                    value["_table"] = "vulnerabilities".into();
-                    let value = serde_json::to_vec(&value)?;
-                    ret.extend_from_slice(&value);
-                    ret.extend_from_slice(&newline_u8);
-                }
-
-                // determine if there are more pages to collect
-                if length == 0 {
-                    break;
-                } else {
-                    next_page = page + 1;
-                }
+            // determine if there are more pages to collect
+            if length == 0 {
+                break;
+            } else {
+                next_page = page + 1;
             }
         }
 
