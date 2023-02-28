@@ -77,7 +77,7 @@ export class ExternalLogPuller extends Construct {
       runtime: lambda.Runtime.PROVIDED_AL2,
       code: RustFunctionCode.assetCode({ package: "log_puller" }),
       handler: "main",
-      timeout: cdk.Duration.minutes(2),
+      timeout: cdk.Duration.minutes(5),
       memorySize: 3000,
       environment: {
         RUST_LOG: "warn,log_puller=info",
@@ -127,7 +127,7 @@ export class ExternalLogPuller extends Construct {
     const dlq = new sqs.Queue(this, "DLQ", {});
 
     const queue = new sqs.Queue(this, "Queue", {
-      visibilityTimeout: cdk.Duration.seconds(130),
+      visibilityTimeout: cdk.Duration.seconds(310),
       deadLetterQueue: {
         queue: dlq,
         maxReceiveCount: 3,
