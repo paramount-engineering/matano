@@ -22,10 +22,10 @@
     "ts-jest": "^26.2.0"
   },
   "dependencies": {
-    "@aws-cdk/cx-api": "*",
+    "@aws-cdk/cx-api": "2.88.0",
     "@mrgrain/cdk-esbuild": "^3",
     "aws-cdk": "2.54.0",
-    "aws-cdk-lib": "2.54.0",
+    "aws-cdk-lib": "2.88.0",
     "aws-sdk": "^2.1093",
     "constructs": "^10.0.0",
     "fs-extra": "^10.1.0",
