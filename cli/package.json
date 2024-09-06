@@ -21,10 +21,10 @@
   ],
   "dependencies": {
     "@aws-cdk/cx-api": "*",
-    "@oclif/core": "^1.9.5",
+    "@oclif/core": "^3.26.3",
     "@oclif/plugin-autocomplete": "*",
     "@oclif/plugin-help": "^5",
-    "@oclif/plugin-plugins": "^2.0.1",
+    "@oclif/plugin-plugins": "^5.0.13",
     "ansi-styles": "^5",
     "aws-cdk": "2.54.0",
     "aws-sdk": "^2.1093",
@@ -34,7 +34,7 @@
     "fs-extra": "^10.1.0",
     "ora": "^4",
     "promptly": "^3.2.0",
-    "proxy-agent": "^5.0.0",
+    "proxy-agent": "^6.0.0",
     "phin": "3.7.0",
     "tty-table": "^4.1.6",
     "yaml": "1.10.2"
